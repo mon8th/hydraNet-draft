@@ -1,6 +1,4 @@
-import math
-from collections import OrderedDict
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
 import torch
 from torch import nn, Tensor
@@ -44,21 +42,6 @@ class Conv2dNormActivation(nn.Sequential):
             layers.append(activation_layer(inplace=True))
         
         super().__init__(*layers)
-
-class SqueezeExcitation(nn.Module): # The SE block lets the network learn which channels to emphasize
-    def __init__(self, input_cha, squeeze_cha, activation=nn.ReLU, scale_activation=nn.Sigmoid):
-        super().__init__()
-        self.avg_pool = nn.AdaptiveAvgPool2d(1) 
-        self.fc1 = nn.Conv2d(input_cha, squeeze_cha, kernel_size=1) # First fully connected layer
-        self.act1 = activation(inplace=True)
-        self.fc2 = nn.Conv2d(squeeze_cha, input_cha, kernel_size=1)
-        self.scale_activation = scale_activation()
-
-    def forward(self, x):
-        w = self.avg_pool(x)
-        w = self.act1(self.fc1(w))
-        w = self.scale_activation(self.fc2(w))
-        return x * w
 
 class SimpleStemIN(Conv2dNormActivation):
     def __init__(
@@ -145,7 +128,7 @@ class ResBottleneckBlock(nn.Module):
                 kernel_size=1,
                 stride=stride,
                 norm_layer=norm_layer,
-                activation_layer=None,  # no activation here
+                activation_layer=None, 
             )
 
         self.activation = activation_layer(inplace=True)
@@ -243,7 +226,7 @@ class  RegNetX800mfBackbone(nn.Module):
             width_in = 288,
             width_out = 672,
             stride = 2,
-            depth = 7,
+            depth = 5,
             norm_layer = norm_layer,
             activation_layer = activation_layer,
             group_width = group_width,
