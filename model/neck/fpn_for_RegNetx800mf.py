@@ -18,6 +18,10 @@ class FPN(nn.Module):
         self.s4 = CNA(out_cha, out_cha, kernel_size=3)
         self.s5 = CNA(out_cha, out_cha, kernel_size=3)
         
+        # adding p6 - p7
+        self.p6 = CNA(out_cha, out_cha, kernel_size=3, stride=2, padding=1)
+        self.p7 = CNA(out_cha, out_cha, kernel_size=3, stride=2, padding=1)
+        
     def forward(self, features):
         c2, c3, c4, c5 = features["C2"], features["C3"], features["C4"], features["C5"]
         l2, l3, l4, l5 = self.lat2(c2), self.lat3(c3), self.lat4(c4), self.lat5(c5)
@@ -26,8 +30,12 @@ class FPN(nn.Module):
         p3 = l3 + F.interpolate(p4, size=l3.shape[-2:], mode="nearest")
         p2 = l2 + F.interpolate(p3, size=l2.shape[-2:], mode="nearest")
         
+        #smoothing for p6-p7
+        p6 = self.p6(p5)
+        p7 = self.p7(F.relu(p6))
+        
         p2, p3, p4, p5 = self.s2(p2), self.s3(p3), self.s4(p4), self.s5(p5)
-        return {"P2": p2, "P3": p3, "P4": p4, "P5": p5}
+        return {"P2": p2, "P3": p3, "P4": p4, "P5": p5, "P6": p6, "P7": p7}
 
 def main():
     fpn = FPN()
