@@ -1,26 +1,25 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from model.backbone.RegNetx800mf import CNA
 
 class FPN(nn.Module):
     def __init__(self, in_cha=(64, 128, 288, 672), out_cha=256):
         super().__init__()
         C2, C3, C4, C5 = in_cha
         # Use keyword arguments to be explicit
-        self.lat2 = CNA(C2, out_cha, kernel_size=1) # lat2 is lateral conv layer for C2
-        self.lat3 = CNA(C3, out_cha, kernel_size=1)
-        self.lat4 = CNA(C4, out_cha, kernel_size=1)
-        self.lat5 = CNA(C5, out_cha, kernel_size=1)
+        self.lat2 = nn.Conv2d(C2, out_cha, kernel_size=1) # lat2 is lateral conv layer for C2
+        self.lat3 = nn.Conv2d(C3, out_cha, kernel_size=1)
+        self.lat4 = nn.Conv2d(C4, out_cha, kernel_size=1)
+        self.lat5 = nn.Conv2d(C5, out_cha, kernel_size=1)
         
-        self.s2 = CNA(out_cha, out_cha, kernel_size=3) # s2 is smoothing conv layer for P2
-        self.s3 = CNA(out_cha, out_cha, kernel_size=3)
-        self.s4 = CNA(out_cha, out_cha, kernel_size=3)
-        self.s5 = CNA(out_cha, out_cha, kernel_size=3)
+        self.s2 = nn.Conv2d(out_cha, out_cha, kernel_size=3) # s2 is smoothing conv layer for P2
+        self.s3 = nn.Conv2d(out_cha, out_cha, kernel_size=3)
+        self.s4 = nn.Conv2d(out_cha, out_cha, kernel_size=3)
+        self.s5 = nn.Conv2d(out_cha, out_cha, kernel_size=3)
         
         # adding p6 - p7
-        self.p6 = CNA(out_cha, out_cha, kernel_size=3, stride=2, padding=1)
-        self.p7 = CNA(out_cha, out_cha, kernel_size=3, stride=2, padding=1)
+        self.p6 = nn.Conv2d(out_cha, out_cha, kernel_size=3, stride=2, padding=1)
+        self.p7 = nn.Conv2d(out_cha, out_cha, kernel_size=3, stride=2, padding=1)
         
     def forward(self, features):
         c2, c3, c4, c5 = features["C2"], features["C3"], features["C4"], features["C5"]
