@@ -4,22 +4,22 @@ from torch import nn, Tensor
 class CNA(nn.Sequential):
     def __init__(
         self,
-        in_channels, # Number of input channels
-        out_channels, # Number of output channels
-        padding=None, # Padding is the number of pixels added to each side of the input
-        stride: int = 1, # Stride is the step size for traversing the input
+        in_channels, 
+        out_channels, 
+        padding=None, 
+        stride: int = 1, 
         kernel_size: int = 3, # Size of the convolutional kernel
         groups: int = 1, # Add groups parameter for group convolutions
-        norm_layer = nn.BatchNorm2d, # Normalization layer
-        activation_layer = nn.ReLU, # Activation layer
-        bias = False # Bias term in convolution
+        norm_layer = nn.BatchNorm2d,
+        activation_layer = nn.ReLU, 
+        bias = False
     ) -> None:
         if padding is None: 
             padding = (kernel_size - 1) // 2 # same padding formula
-        layers = [] # make layers 
+        layers = []
         layers.append(nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, groups=groups, bias=bias))
         layers.append(norm_layer(out_channels))
-        if activation_layer is not None:  # Allow None activation
+        if activation_layer is not None: 
             layers.append(activation_layer(inplace=True))
         super().__init__(*layers)
 
@@ -28,34 +28,61 @@ class Stem(CNA):
         super().__init__(width_in, width_out, kernel_size=3, stride=2)
 
 class BottleNeckTransform(nn.Sequential):
-    def __init__(self, width_in, width_out, stride, group_width, norm_layer = nn.BatchNorm2d, activation_layer = nn.ReLU) -> None:
+    def __init__(
+        self, 
+        width_in, 
+        width_out, 
+        stride, 
+        group_width, 
+        norm_layer=nn.BatchNorm2d, 
+        bottleneck_multiplier = 1.0, 
+        activation_layer=nn.ReLU
+    ) -> None: 
+        bottleneck_channels = int(width_out * bottleneck_multiplier)
+        bottleneck_channels = int(round(bottleneck_channels/group_width)*group_width)
         super().__init__(
-            CNA(width_in, width_out, kernel_size=1, stride=1, norm_layer=norm_layer, activation_layer=activation_layer),
-            CNA(width_out, width_out, kernel_size=3, stride=stride, groups=width_out // group_width, norm_layer=norm_layer, activation_layer=activation_layer),
-            nn.Conv2d(width_out, width_out, kernel_size=1, stride=1, bias=False),
+            # 1x1 compress
+            nn.Conv2d(width_in, bottleneck_channels, kernel_size=1, stride=1, bias=False),
+            norm_layer(bottleneck_channels),
+            activation_layer(inplace=True),
+            
+            # 3x3 grouped
+            nn.Conv2d(bottleneck_channels, bottleneck_channels, kernel_size=3, stride=stride, 
+                    padding=1, groups=bottleneck_channels//group_width, bias=False),
+            norm_layer(bottleneck_channels),
+            activation_layer(inplace=True),
+            
+            # 1x1 expand
+            nn.Conv2d(bottleneck_channels, width_out, kernel_size=1, stride=1, bias=False),
             norm_layer(width_out)
         )
-
 class ResidualBlock(nn.Module):
-    def __init__(self, width_in, width_out, stride, group_width, norm_layer, activation_layer) -> None:
+    def __init__(
+            self, 
+            width_in, 
+            width_out, 
+            stride, 
+            group_width,
+            norm_layer, 
+            activation_layer,
+            bottleneck_multiplier = 1.0,
+        ) -> None:
         super().__init__()
         self.f = BottleNeckTransform( # this is the main path
             width_in,
             width_out,
             stride,
             group_width,
-            norm_layer,
-            activation_layer
+            norm_layer=norm_layer,
+            activation_layer=activation_layer,  # Fix: was norm_layer
+            bottleneck_multiplier=bottleneck_multiplier,
         )
         # Skip connection
         self.down = None 
         if width_in != width_out or stride != 1:
-            self.down = CNA( 
-                width_in,
-                width_out,
-                kernel_size=1,
-                stride=stride,
-                bias = False,
+            self.down = nn.Sequential(
+                nn.Conv2d(width_in, width_out, kernel_size=1, stride=stride, bias=False),
+                norm_layer(width_out)
             )
         
         self.act = activation_layer(inplace=True)
@@ -69,7 +96,17 @@ class ResidualBlock(nn.Module):
         return self.act(out)
     
 class RegNetStage(nn.Sequential):
-    def __init__(self, width_in, width_out, stride, depth, group_width, norm_layer, activation_layer, bottleneck_multiplier) -> None:
+    def __init__(
+            self, 
+            width_in, 
+            width_out, 
+            stride, 
+            depth, 
+            group_width, 
+            norm_layer, 
+            activation_layer, 
+            bottleneck_multiplier,
+            ) -> None:
         super().__init__()
         for i in range(depth):
             block = ResidualBlock(
@@ -79,6 +116,7 @@ class RegNetStage(nn.Sequential):
                 group_width,
                 norm_layer,
                 activation_layer,
+                bottleneck_multiplier=bottleneck_multiplier,
             )
             self.add_module(f"block{i+1}", block)
     
