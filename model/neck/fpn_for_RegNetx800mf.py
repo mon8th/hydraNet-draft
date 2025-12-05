@@ -12,10 +12,10 @@ class FPN(nn.Module):
         self.lat4 = nn.Conv2d(C4, out_cha, kernel_size=1)
         self.lat5 = nn.Conv2d(C5, out_cha, kernel_size=1)
         
-        self.s2 = nn.Conv2d(out_cha, out_cha, kernel_size=3) # s2 is smoothing conv layer for P2
-        self.s3 = nn.Conv2d(out_cha, out_cha, kernel_size=3)
-        self.s4 = nn.Conv2d(out_cha, out_cha, kernel_size=3)
-        self.s5 = nn.Conv2d(out_cha, out_cha, kernel_size=3)
+        self.s2 = nn.Conv2d(out_cha, out_cha, kernel_size=3, padding=1) # s2 is smoothing conv layer for P2
+        self.s3 = nn.Conv2d(out_cha, out_cha, kernel_size=3, padding=1)
+        self.s4 = nn.Conv2d(out_cha, out_cha, kernel_size=3, padding=1)
+        self.s5 = nn.Conv2d(out_cha, out_cha, kernel_size=3, padding=1)
         
         # adding p6 - p7
         self.p6 = nn.Conv2d(out_cha, out_cha, kernel_size=3, stride=2, padding=1)
