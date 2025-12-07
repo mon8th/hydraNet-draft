@@ -106,14 +106,10 @@ class FCOSHead(nn.Module):
             # classification branch
             cls_feat = self.cls_tower(feature)
             logits.append(self.cls_logits(cls_feat))
-
             # regression + centerness branch
             bbox_feat = self.bbox_tower(feature)
             bbox_l = self.bbox_pred(bbox_feat)
-
-            # Scale per level + exp to enforce positivity (exact FCOS behavior)
             bbox_reg.append(torch.exp(self.scales[l](bbox_l)))
-
             centerness.append(self.centerness(bbox_feat))
 
         return logits, bbox_reg, centerness
