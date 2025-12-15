@@ -1,0 +1,50 @@
+# configs/hydranet_config.yaml
+
+MODEL:
+  BACKBONE:
+    NAME: "regnetx_800mf"
+  
+  NECK:
+    NAME: "FPN"
+    IN_CHANNELS: [64, 128, 288, 672]  # RegNetX-800MF output channels
+    OUT_CHANNELS: 256
+  
+  FCOS:
+    NUM_CONVS: 4
+    NUM_CLASSES: 80 
+    PRIOR_PROB: 0.01
+    
+    OBJECT_SIZES_OF_INTEREST:
+      - [-1, 64]      # P3: objects 0-64 pixels
+      - [64, 128]     # P4: objects 64-128 pixels
+      - [128, 256]    # P5: objects 128-256 pixels
+      - [256, 512]    # P6: objects 256-512 pixels
+      - [512, 100000] # P7: objects >512 pixels
+    
+    CENTER_SAMPLE: True
+    CENTER_SAMPLE_RADIUS: 1.5
+    
+    SCORE_THRESH: 0.05
+    NMS_THRESH: 0.6
+    PRE_NMS_TOP_N: 1000
+    POST_NMS_TOP_N: 100
+
+TRAINING:
+  BATCH_SIZE: 8
+  NUM_EPOCHS: 50
+  LEARNING_RATE: 0.01
+  MOMENTUM: 0.9
+  WEIGHT_DECAY: 0.0001
+  
+  # Loss weights
+  LOSS_WEIGHTS:
+    fcos_cls: 1.0
+    fcos_reg: 1.0
+    fcos_centerness: 1.0
+
+DATASET:
+  TRAIN_IMAGES: "path/to/train/images"
+  TRAIN_ANNOTATIONS: "path/to/train/annotations"
+  VAL_IMAGES: "path/to/val/images"
+  VAL_ANNOTATIONS: "path/to/val/annotations"
+  NUM_CLASSES: 80
