@@ -1,7 +1,7 @@
 import torch
 from torch import nn, Tensor
 
-class CNA(nn.Sequential):
+class CNA(nn.Sequential): # Basic building block 
     def __init__(
         self,
         in_channels, 
@@ -24,10 +24,20 @@ class CNA(nn.Sequential):
         super().__init__(*layers)
 
 class Stem(CNA):
+    """
+    First layer of the network. 
+    Reduces image size (stride=2) and increases channels.
+    """
     def __init__(self, width_in, width_out) -> None:
         super().__init__(width_in, width_out, kernel_size=3, stride=2)
 
 class BottleNeckTransform(nn.Sequential):
+    """
+    The main computation path inside a residual block:
+    - 1x1 conv → shrink channels
+    - 3x3 grouped conv → process features
+    - 1x1 conv → expand channels back
+    """
     def __init__(
         self, 
         width_in, 
@@ -57,6 +67,13 @@ class BottleNeckTransform(nn.Sequential):
             norm_layer(width_out)
         )
 class ResidualBlock(nn.Module):
+    """
+    Adds skip connection:
+        - main path = BottleNeckTransform
+        - skip path = identity or 1x1 conv if shape changes
+    Output = main + skip
+    This helps training deep networks.
+    """
     def __init__(
             self, 
             width_in, 
@@ -96,6 +113,12 @@ class ResidualBlock(nn.Module):
         return self.act(out)
     
 class RegNetStage(nn.Sequential):
+    """
+    A stack of residual blocks:
+        - first block may downsample (stride > 1)
+        - rest keep size the same
+    Each stage increases feature abstraction.
+    """
     def __init__(
             self, 
             width_in, 
@@ -143,6 +166,14 @@ class RegNetX800mfBackbone(nn.Module):
         return {"C2": c2, "C3": c3, "C4": c4, "C5": c5}
 
 def main():
+    """
+    {
+        "C2": low-level features,
+        "C3": mid-level features,
+        "C4": high-level features,
+        "C5": very high-level features
+    }
+    """
     model = RegNetX800mfBackbone()
     x = torch.randn(1, 3, 224, 224)
     outputs = model(x)
