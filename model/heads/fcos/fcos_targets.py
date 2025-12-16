@@ -12,7 +12,7 @@ class FCOSTargetGenerator:
     def __init__(
         self, object_sizes_of_interest, center_sample=True, radius=1.5
     ):  # 1.5 is default in original FCOS
-        self.objectt_sizes_of_interest = object_sizes_of_interest
+        self.object_sizes_of_interest = object_sizes_of_interest
         self.center_sample = center_sample
         self.radius = radius
 
@@ -28,8 +28,8 @@ class FCOSTargetGenerator:
             labels_per_image = []
             reg_targets_per_image = []
 
-            for level, locations_per_level in enumerate(locations, fpn_strides):
-                size_range = self.objectt_sizes_of_interest[level]
+            for level, locations_per_level in enumerate(locations):
+                size_range = self.object_sizes_of_interest[level]
                 labels, reg_targets = self.compute_targets_single_level(
                     locations_per_level,
                     gt_boxes,
@@ -83,12 +83,6 @@ class FCOSTargetGenerator:
 
         valid = in_boxes & in_size_range
 
-        if self.center_sample:
-            is_center = self.get_center_sampling_mask(
-                locations, gt_boxes, stride, self.radius
-            )
-            valid = valid & is_center
-
         # smallest area
         areas = (gt_boxes[:, 2] - gt_boxes[:, 0]) * (gt_boxes[:, 3] - gt_boxes[:, 1])
         areas = (
@@ -100,7 +94,28 @@ class FCOSTargetGenerator:
         labels = gt_labels[min_area_inds]
         labels[min_area == float("inf")] = 0  # background
 
-        reg_targets = reg_targets[torch.range(num_locations), min_area_inds]
+        reg_targets = reg_targets[torch.arange(num_locations), min_area_inds]
         reg_targets[min_area == float("inf")] = 0
 
         return labels, reg_targets
+
+    def get_center_sample_region(self, gt_boxes, locations, stride, radius):
+        cx = (gt_boxes[:, 0] + gt_boxes[:, 2]) / 2
+        cy = (gt_boxes[:, 1] + gt_boxes[:, 3]) / 2
+
+        center_radius = radius * stride
+        x_min = cx - center_radius
+        y_min = cy - center_radius
+        x_max = cx + center_radius
+        y_max = cy + center_radius
+
+        xs, ys = locations[:, 0], locations[:, 1]
+        l = xs[:, None] - x_min[None, :]
+        t = ys[:, None] - y_min[None, :]
+        r = x_max[None, :] - xs[:, None]
+        b = y_max[None, :] - ys[:, None]
+
+        center_region = torch.stack([l, t, r, b], dim=2)
+        is_in_center = center_region.min(dim=2)[0] > 0
+
+        return is_in_center
